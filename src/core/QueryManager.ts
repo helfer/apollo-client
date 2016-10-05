@@ -122,7 +122,6 @@ export type ResultTransformer = (resultData: ApolloQueryResult) => ApolloQueryRe
 export type ResultComparator = (result1: ApolloQueryResult, result2: ApolloQueryResult) => boolean;
 
 export class QueryManager {
-  public pollingTimers: {[queryId: string]: NodeJS.Timer | any}; //oddity in Typescript
   public scheduler: QueryScheduler;
   public store: ApolloStore;
 
@@ -180,7 +179,6 @@ export class QueryManager {
     this.queryTransformer = queryTransformer;
     this.resultTransformer = resultTransformer;
     this.resultComparator = resultComparator;
-    this.pollingTimers = {};
     this.queryListeners = {};
 
     this.scheduler = new QueryScheduler({
