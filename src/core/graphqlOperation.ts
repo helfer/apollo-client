@@ -133,3 +133,23 @@
 // 7. do everything you forgot.
 
 // 8. celebrate
+
+
+
+
+// SPECIFICS:
+
+// 1. refactor polling:
+
+// polling should now happen by writing a query to the store with a polling flag set to true.
+// the scheduler will check the store periodically for queries that have polling = true and will
+// fire a request.
+
+// firing the request will update the inFlight flag of the query in the store, which will prevent
+// further requests from going out.
+
+// in order to poll at the right frequency, we need the following information:
+// - pollingInterval (if zero, no polling)
+// - lastFired
+
+// or maybe set pollingInterval to zero to signal no polling?
