@@ -107,3 +107,29 @@
 
 // QUESTION:
 // can I add reducers to a store once it's built?
+
+
+// PLAN:
+// (make sure tests pass at every step)
+
+// 1. refactor polling & scheduler so it happens through the scheduler
+  // update actions to contain extra information we need
+
+// 2. refactor normal queries to go through the scheduler
+  // update actions to contain extra information we need.
+  // make scheduler run on store updates, not on periodic intervals
+
+// 3. modify actions/reducers to not store the parsed query
+
+// 4. convert actions to thunks and use redux thunk middleware
+
+// 5. write central graphqlOperation function, and start redicrecting control flow through it
+  // first redirect mutations
+  // then redirect queries
+  // then redirect subscriptions
+
+// 6. remove all that remains of query manager.
+
+// 7. do everything you forgot.
+
+// 8. celebrate
