@@ -50,6 +50,16 @@ export interface QueryInitAction {
   storePreviousVariables: boolean;
 }
 
+export function isFetchRequestAction(action: ApolloAction): action is FetchRequestAction {
+  return action.type === 'APOLLO_FETCH_REQUEST';
+}
+
+export type FetchRequestAction = {
+  type: 'APOLLO_FETCH_REQUEST';
+  requestId: number;
+  queryId: string;
+}
+
 export function isQueryInitAction(action: ApolloAction): action is QueryInitAction {
   return action.type === 'APOLLO_QUERY_INIT';
 }
@@ -137,6 +147,7 @@ export type ApolloAction =
   QueryInitAction |
   QueryResultClientAction |
   QueryStopAction |
+  FetchRequestAction |
   MutationInitAction |
   MutationResultAction |
   MutationErrorAction |

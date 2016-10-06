@@ -1,6 +1,7 @@
 import {
   ApolloAction,
   isQueryInitAction,
+  isFetchRequestAction,
   isQueryResultAction,
   isQueryErrorAction,
   isQueryResultClientAction,
@@ -25,17 +26,20 @@ import {
 import assign = require('lodash.assign');
 import isEqual = require('lodash.isequal');
 
-export interface QueryStore {
+export type QueryStore = {
   [queryId: string]: QueryStoreValue;
 }
 
-export interface QueryStoreValue {
+export type QueryStoreValue = {
   queryString: string;
   query: SelectionSetWithRoot;
   variables: Object;
   previousVariables: Object;
   loading: boolean;
   stopped: boolean;
+  pollInterval: number;
+  inFlight: boolean;
+  lastRequestTime: Date;
   networkError: Error;
   graphQLErrors: GraphQLError[];
   forceFetch: boolean;
@@ -77,6 +81,9 @@ export function queries(
       stopped: false,
       networkError: null,
       graphQLErrors: null,
+      pollInterval: action.pollInterval,
+      inFlight: false,
+      lastRequestTime: null,
       forceFetch: action.forceFetch,
       returnPartialData: action.returnPartialData,
       lastRequestId: action.requestId,
@@ -84,6 +91,21 @@ export function queries(
     };
 
     return newState;
+
+  } else if (isFetchRequestAction(action)) {
+    if (!previousState[action.queryId]) {
+      return previousState;
+    }
+
+    const newState = assign({}, previousState) as QueryStore;
+    newState[action.queryId] = assign({}, previousState[action.queryId], {
+      inFlight: true,
+      lastRequestId: action.requestId,
+      lastRequestTime: new Date(),
+    });
+
+    return newState;
+
   } else if (isQueryResultAction(action)) {
     if (!previousState[action.queryId]) {
       return previousState;
@@ -99,6 +121,7 @@ export function queries(
 
     newState[action.queryId] = assign({}, previousState[action.queryId], {
       loading: false,
+      inFlight: false,
       networkError: null,
       graphQLErrors: resultHasGraphQLErrors ? action.result.errors : null,
       previousVariables: null,
@@ -119,6 +142,7 @@ export function queries(
 
     newState[action.queryId] = assign({}, previousState[action.queryId], {
       loading: false,
+      inFlight: false,
       networkError: action.error,
     }) as QueryStoreValue;
 
@@ -137,6 +161,7 @@ export function queries(
     }) as QueryStoreValue;
 
     return newState;
+
   } else if (isQueryStopAction(action)) {
     const newState = assign({}, previousState) as QueryStore;
 
