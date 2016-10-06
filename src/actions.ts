@@ -36,7 +36,7 @@ export function isQueryErrorAction(action: ApolloAction): action is QueryErrorAc
   return action.type === 'APOLLO_QUERY_ERROR';
 }
 
-export interface QueryInitAction {
+export type QueryInitAction = {
   type: 'APOLLO_QUERY_INIT';
   queryString: string;
   query: SelectionSetWithRoot;
@@ -45,7 +45,6 @@ export interface QueryInitAction {
   pollInterval: number;
   returnPartialData: boolean;
   queryId: string;
-  requestId: number;
   fragmentMap: FragmentMap;
   storePreviousVariables: boolean;
 }

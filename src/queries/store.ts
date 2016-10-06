@@ -86,7 +86,7 @@ export function queries(
       lastRequestTime: null,
       forceFetch: action.forceFetch,
       returnPartialData: action.returnPartialData,
-      lastRequestId: action.requestId,
+      lastRequestId: null,
       fragmentMap: action.fragmentMap,
     };
 

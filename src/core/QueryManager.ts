@@ -668,6 +668,10 @@ export class QueryManager {
     };
   }
 
+  public getQueryState(queryId: string) {
+    return this.getApolloState().queries[queryId];
+  }
+
   // Give the result transformer a chance to observe or modify result data before it is passed on.
   public transformResult(result: ApolloQueryResult): ApolloQueryResult {
     if (!this.resultTransformer) {
@@ -675,6 +679,116 @@ export class QueryManager {
     } else {
       return this.resultTransformer(result);
     }
+  }
+
+  // Takes a request id, query id, a query document and information associated with the query
+  // (e.g. variables, fragment map, etc.) and send it to the network interface. Returns
+  // a promise for the result associated with that request.
+  public fetchRequest({
+    queryId,
+    query,
+    options,
+  }: {
+    queryId: string,
+    query: Document,
+    options: WatchQueryOptions,
+  }): Promise<GraphQLResult> {
+    const {
+      variables,
+      noFetch,
+      returnPartialData,
+    } = options;
+    const request: Request = {
+      query,
+      variables,
+      operationName: getOperationName(query),
+    };
+
+    const requestId = this.generateRequestId();
+
+    const retPromise = new Promise<ApolloQueryResult>((resolve, reject) => {
+      this.addFetchQueryPromise(requestId, retPromise, resolve, reject);
+
+      this.store.dispatch({
+        type: 'APOLLO_FETCH_REQUEST',
+        queryId,
+        requestId,
+      });
+
+      return this.networkInterface.query(request)
+        .then((result: GraphQLResult) => {
+          // XXX handle multiple ApolloQueryResults
+          this.store.dispatch({
+            type: 'APOLLO_QUERY_RESULT',
+            result,
+            queryId,
+            requestId,
+          });
+
+          this.removeFetchQueryPromise(requestId);
+          return result;
+        }).then(() => {
+
+          let resultFromStore: any;
+          try {
+            // ensure result is combined with data already in store
+            // this will throw an error if there are missing fields in
+            // the results if returnPartialData is false.
+            resultFromStore = readQueryFromStore({
+              store: this.getApolloState().data,
+              variables,
+              returnPartialData: returnPartialData || noFetch,
+              query,
+            });
+            // ensure multiple errors don't get thrown
+            /* tslint:disable */
+          } catch (e) {}
+          /* tslint:enable */
+
+          // return a chainable promise
+          this.removeFetchQueryPromise(requestId);
+          resolve({ data: resultFromStore, loading: false });
+        }).catch((error: Error) => {
+          this.store.dispatch({
+            type: 'APOLLO_QUERY_ERROR',
+            error,
+            queryId,
+            requestId,
+          });
+
+          this.removeFetchQueryPromise(requestId);
+        });
+    });
+    return retPromise;
+  }
+
+  // Takes a set of WatchQueryOptions and transforms the query document
+  // accordingly. Specifically, it does the following:
+  // 1. Adds the fragments to the document
+  // 2. Applies the queryTransformer (if there is one defined)
+  // 3. Creates a fragment map out of all of the fragment definitions within the query
+  //    document.
+  // 4. Returns the final query document and the fragment map associated with the
+  //    query.
+  public transformQueryDocument(options: WatchQueryOptions): {
+    queryDoc: Document,
+    fragmentMap: FragmentMap,
+  } {
+    const {
+      query,
+      fragments = [],
+    } = options;
+    let queryDoc = addFragmentsToDocument(query, fragments);
+
+    // Apply the query transformer if one has been provided
+    if (this.queryTransformer) {
+      queryDoc = applyTransformers(queryDoc, [ this.queryTransformer ]);
+    }
+
+    return {
+      queryDoc,
+      fragmentMap: createFragmentMap(getFragmentDefinitions(queryDoc)),
+    };
   }
 
   // XXX: I think we just store this on the observable query at creation time
@@ -754,120 +868,6 @@ export class QueryManager {
     return resultBehaviors;
   }
 
-  // Takes a set of WatchQueryOptions and transforms the query document
-  // accordingly. Specifically, it does the following:
-  // 1. Adds the fragments to the document
-  // 2. Applies the queryTransformer (if there is one defined)
-  // 3. Creates a fragment map out of all of the fragment definitions within the query
-  //    document.
-  // 4. Returns the final query document and the fragment map associated with the
-  //    query.
-  private transformQueryDocument(options: WatchQueryOptions): {
-    queryDoc: Document,
-    fragmentMap: FragmentMap,
-  } {
-    const {
-      query,
-      fragments = [],
-    } = options;
-    let queryDoc = addFragmentsToDocument(query, fragments);
-
-    // Apply the query transformer if one has been provided
-    if (this.queryTransformer) {
-      queryDoc = applyTransformers(queryDoc, [ this.queryTransformer ]);
-    }
-
-    return {
-      queryDoc,
-      fragmentMap: createFragmentMap(getFragmentDefinitions(queryDoc)),
-    };
-  }
-
-  // Takes a request id, query id, a query document and information associated with the query
-  // (e.g. variables, fragment map, etc.) and send it to the network interface. Returns
-  // a promise for the result associated with that request.
-  private fetchRequest({
-    requestId,
-    queryId,
-    query,
-    querySS,
-    options,
-    fragmentMap,
-  }: {
-    requestId: number,
-    queryId: string,
-    query: Document,
-    querySS: SelectionSetWithRoot,
-    options: WatchQueryOptions,
-    fragmentMap: FragmentMap,
-  }): Promise<GraphQLResult> {
-    const {
-      variables,
-      noFetch,
-      returnPartialData,
-    } = options;
-    const request: Request = {
-      query,
-      variables,
-      operationName: getOperationName(query),
-    };
-
-    const retPromise = new Promise<ApolloQueryResult>((resolve, reject) => {
-      this.addFetchQueryPromise(requestId, retPromise, resolve, reject);
-
-      this.store.dispatch({
-        type: 'APOLLO_FETCH_REQUEST',
-        queryId,
-        requestId,
-      });
-
-      return this.networkInterface.query(request)
-        .then((result: GraphQLResult) => {
-          // XXX handle multiple ApolloQueryResults
-          this.store.dispatch({
-            type: 'APOLLO_QUERY_RESULT',
-            result,
-            queryId,
-            requestId,
-          });
-
-          this.removeFetchQueryPromise(requestId);
-          return result;
-        }).then(() => {
-
-          let resultFromStore: any;
-          try {
-            // ensure result is combined with data already in store
-            // this will throw an error if there are missing fields in
-            // the results if returnPartialData is false.
-            resultFromStore = readQueryFromStore({
-              store: this.getApolloState().data,
-              variables,
-              returnPartialData: returnPartialData || noFetch,
-              query,
-            });
-            // ensure multiple errors don't get thrown
-            /* tslint:disable */
-          } catch (e) {}
-          /* tslint:enable */
-
-          // return a chainable promise
-          this.removeFetchQueryPromise(requestId);
-          resolve({ data: resultFromStore, loading: false });
-        }).catch((error: Error) => {
-          this.store.dispatch({
-            type: 'APOLLO_QUERY_ERROR',
-            error,
-            queryId,
-            requestId,
-          });
-
-          this.removeFetchQueryPromise(requestId);
-        });
-    });
-    return retPromise;
-  }
-
   private fetchQueryOverInterface(
     queryId: string,
     options: WatchQueryOptions
@@ -912,21 +912,20 @@ export class QueryManager {
       storeResult = result;
     }
 
-    const requestId = this.generateRequestId();
     const shouldFetch = needToFetch && !noFetch;
 
     // Initialize query in store with unique requestId
     this.store.dispatch({
       type: 'APOLLO_QUERY_INIT',
       queryString,
-      query: querySS,
+      query: querySS, // TODO REFACTOR remove this!
       pollInterval,
       variables,
       forceFetch,
       returnPartialData: returnPartialData || noFetch,
       queryId,
-      requestId,
-      fragmentMap,
+      // requestId,
+      fragmentMap, // TODO REFACTOR: remove this.
       // we store the old variables in order to trigger "loading new variables"
       // state if we know we will go to the server
       storePreviousVariables: shouldFetch,
@@ -939,7 +938,7 @@ export class QueryManager {
         type: 'APOLLO_QUERY_RESULT_CLIENT',
         result: { data: storeResult },
         variables,
-        query: querySS,
+        query: querySS, // TODO: standardize this.
         complete: !shouldFetch,
         queryId,
       });
@@ -947,12 +946,9 @@ export class QueryManager {
 
     if (shouldFetch) {
       return this.fetchRequest({
-        requestId,
         queryId,
         query: queryDoc,
-        querySS,
         options,
-        fragmentMap,
       });
     }
 

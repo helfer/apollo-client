@@ -51,11 +51,14 @@ export class QueryScheduler {
   }
 
   public checkInFlight(queryId: string) {
-    return this.inFlightQueries.hasOwnProperty(queryId);
+    // return this.inFlightQueries.hasOwnProperty(queryId);
+    return this.queryManager.getQueryState(queryId).inFlight;
   }
 
   public fetchQuery(queryId: string, options: WatchQueryOptions) {
     return new Promise((resolve, reject) => {
+      // TODO REFACTOR change this to fetchRequest
+      // const queryDoc = this.queryManager.transformQueryDocument(options);
       this.queryManager.fetchQuery(queryId, options).then((result) => {
         this.removeInFlight(queryId);
         resolve(result);
