@@ -153,3 +153,73 @@
 // - lastFired
 
 // or maybe set pollingInterval to zero to signal no polling?
+
+
+
+
+
+
+// ISSUES TO FIX:
+
+// we only fire the query once we call subscribe on it.
+// that leads to some awkward code where we actually set up the query,
+// but don't call start query on it until someone subscribes.
+// that's dumb.
+
+// we have all this observable mess inside of Apollo Client.
+// the whole thing could really work in a much much simpler way.
+
+// so many dependencies in the different parts of the code
+// death by a thousand dependencies is a slow death, but it's painful.
+// it's like getting caught in a swamp. let's drain the swap before we get stuck in the mud.
+
+// UNIFY QUERY REPRESENTATION. Just one way of representing the query, please.
+// let's not move 10 independent variables around, instead just have one internal
+// representation of a query and all its associated options.
+
+// watchQuery
+// query (only superficial difference)
+// mutation
+// subscription
+
+// QUERY:
+// document:
+// - operationDefinition
+// - fragments
+// options:
+// - variables
+// - noFetch
+// - returnPartialData
+// - forceFetch
+// - pollInterval
+// (-optimisticResponse)
+
+// added internal information to be represented in the store:
+// - inFlight
+// - lastFetchTime
+// - networkStatus: <initializing/fetching/loaded/refetching/updating/polling/errored>
+
+
+
+// MUTATION:
+// document:
+// - operationDefinition
+// - fragments
+// options:
+// - variables
+// - optimisticResponse
+// - updateQueries
+// - refetchQueries
+
+// added internal information:
+// networkStatus: <initializing/fetching/loaded/errored>
+
+
+// SUBSCRIPTION:
+
+// document
+// options:
+// - variables
+// (-optimisticResponse)
+// - updateQueries (just a helper, you can do this yourself)
+// - refetchQueries (just a helper, you can do this yourself)

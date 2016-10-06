@@ -871,6 +871,7 @@ export class QueryManager {
       forceFetch = false,
       returnPartialData = false,
       noFetch = false,
+      pollInterval = 0,
     } = options;
 
     const {
@@ -913,6 +914,7 @@ export class QueryManager {
       type: 'APOLLO_QUERY_INIT',
       queryString,
       query: querySS,
+      pollInterval,
       variables,
       forceFetch,
       returnPartialData: returnPartialData || noFetch,

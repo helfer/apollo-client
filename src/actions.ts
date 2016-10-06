@@ -42,6 +42,7 @@ export interface QueryInitAction {
   query: SelectionSetWithRoot;
   variables: Object;
   forceFetch: boolean;
+  pollInterval: number;
   returnPartialData: boolean;
   queryId: string;
   requestId: number;
