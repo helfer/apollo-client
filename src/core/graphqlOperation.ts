@@ -7,12 +7,11 @@
  */
 
 /* function graphqlOperation({
-  actionThunk,
+  actionCreator,
   reducers,
   selector,
   listener,
   store,
-  reduxRootSelector,
 }): void { */
 
   // 1. apply the selectors to the store and call the listener whenever selector returns.
@@ -223,3 +222,55 @@
 // (-optimisticResponse)
 // - updateQueries (just a helper, you can do this yourself)
 // - refetchQueries (just a helper, you can do this yourself)
+
+
+// Ugh, it's taking too long to make all these minor changes. I'm just going to nuke it instead.
+
+// STEPS
+
+// 0. keep the interface to query, watchQuery etc, but
+// 1. do a query, write it to the store, provide callbacks on subscription to to store.
+// - actionCreator:
+//   - dispatch the queryInit action in the thunk
+//   - send the first request in the thunk
+//   - sending request updates query state
+// - reducers:
+//   - there's one global query state reducer. That works the same for all.
+//   - for the data part, we provide a reducer, and users can also provide reducers.
+//   -
+// 2.
+
+
+// inside, everything is represented by an apolloOperation:
+//   document (query, subscription, mutation)
+//   variables
+//   operationId: unique identifier
+//   options
+
+
+// ApolloQuery:
+//  options
+//  - pollInterval
+//  - forceFetch
+//  - noFetch -> combine to fetch option?
+//  - returnPartialData
+//  (- optimisticResponse)
+//  - reducers
+
+
+// ApolloMutation:
+//  options
+//  - optimisticResponse
+//  (- updateQueries )
+//  - refetchQueries
+//  - reducers
+
+// ApolloSubscription
+//  options
+//  - reducers
+//  (- updateQueries)
+//  (- refetchQueries)
+
+
+// start with a redux store. Start with just submitting a query string and getting back a result.
+//

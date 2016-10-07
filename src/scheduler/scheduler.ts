@@ -19,10 +19,11 @@ import { WatchQueryOptions } from '../core/watchQueryOptions';
 
 import assign = require('lodash.assign');
 
-export class QueryScheduler {
-  // Map going from queryIds to query options that are in flight.
-  public inFlightQueries: { [queryId: string]: WatchQueryOptions };
+import {
+  GraphQLResult,
+} from 'graphql';
 
+export class QueryScheduler {
   // Map going from query ids to the query options associated with those queries. Contains all of
   // the queries, both in flight and not in flight.
   public registeredQueries: { [queryId: string]: WatchQueryOptions };
@@ -45,7 +46,6 @@ export class QueryScheduler {
   }) {
     this.queryManager = queryManager;
     this.pollingTimers = {};
-    this.inFlightQueries = {};
     this.registeredQueries = {};
     this.intervalQueries = {};
   }
@@ -55,19 +55,9 @@ export class QueryScheduler {
     return this.queryManager.getQueryState(queryId).inFlight;
   }
 
-  public fetchQuery(queryId: string, options: WatchQueryOptions) {
-    return new Promise((resolve, reject) => {
-      // TODO REFACTOR change this to fetchRequest
-      // const queryDoc = this.queryManager.transformQueryDocument(options);
-      this.queryManager.fetchQuery(queryId, options).then((result) => {
-        this.removeInFlight(queryId);
-        resolve(result);
-      }).catch((error) => {
-        this.removeInFlight(queryId);
-        reject(error);
-      });
-      this.addInFlight(queryId, options);
-    });
+  public fetchQuery(queryId: string, options: WatchQueryOptions): Promise<GraphQLResult> {
+    const { queryDoc } = this.queryManager.transformQueryDocument(options);
+    return this.queryManager.fetchRequest({ queryId, query: queryDoc, options });
   }
 
   // The firstFetch option is used to denote whether we want to fire off a
@@ -87,9 +77,9 @@ export class QueryScheduler {
     this.registeredQueries[queryId] = options;
 
     // Fire an initial fetch before we start the polling query
-    if (firstFetch) {
-      this.fetchQuery(queryId, options);
-    }
+    // if (firstFetch) {
+    //   this.fetchQuery(queryId, options);
+    // }
 
     if (listener) {
       this.queryManager.addQueryListener(queryId, listener);
@@ -165,13 +155,5 @@ export class QueryScheduler {
       scheduler: this,
       options: queryOptions,
     });
-  }
-
-  private addInFlight(queryId: string, options: WatchQueryOptions) {
-    this.inFlightQueries[queryId] = options;
-  }
-
-  private removeInFlight(queryId: string) {
-    delete this.inFlightQueries[queryId];
   }
 }

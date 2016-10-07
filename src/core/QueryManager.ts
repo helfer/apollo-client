@@ -530,9 +530,9 @@ export class QueryManager {
 
     // If the pollInterval is present, the scheduler has already taken care of firing the first
     // fetch so we don't have to worry about it here.
-    if (!options.pollInterval) {
-      this.fetchQuery(queryId, options);
-    }
+    // if (!options.pollInterval) {
+    this.fetchQuery(queryId, options);
+    // }
 
     return queryId;
   }
