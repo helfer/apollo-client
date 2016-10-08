@@ -3,7 +3,7 @@ import {
   isMutationInitAction,
   isMutationResultAction,
   isMutationErrorAction,
-} from '../actions';
+} from '../core/actions';
 
 import {
   data,
@@ -13,7 +13,7 @@ import {
 import {
   getDataWithOptimisticResults,
   Store,
-} from '../store';
+} from '../core/store';
 
 import assign = require('lodash.assign');
 import pick = require('lodash.pick');

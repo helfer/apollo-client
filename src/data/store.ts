@@ -4,7 +4,7 @@ import {
   isMutationResultAction,
   isUpdateQueryResultAction,
   isStoreResetAction,
-} from '../actions';
+} from '../core/actions';
 
 import {
   writeSelectionSetToStore,
@@ -23,7 +23,7 @@ import {
 
 import {
   ApolloReducerConfig,
-} from '../store';
+} from '../core/store';
 
 import {
   graphQLResultHasError,

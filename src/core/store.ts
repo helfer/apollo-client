@@ -8,22 +8,22 @@ import {
 import {
   data,
   NormalizedCache,
-} from './data/store';
+} from '../data/store';
 
 import {
   queries,
   QueryStore,
-} from './queries/store';
+} from '../queries/store';
 
 import {
   mutations,
   MutationStore,
-} from './mutations/store';
+} from '../mutations/store';
 
 import {
   optimistic,
   OptimisticStore,
-} from './optimistic-data/store';
+} from '../optimistic-data/store';
 
 import {
   ApolloAction,
@@ -31,11 +31,11 @@ import {
 
 import {
   IdGetter,
-} from './data/extensions';
+} from '../data/extensions';
 
 import {
   MutationBehaviorReducerMap,
-} from './data/mutationResults';
+} from '../data/mutationResults';
 
 import assign = require('lodash.assign');
 

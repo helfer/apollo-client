@@ -17,7 +17,7 @@ import {
 
 import {
   ApolloReducerConfig,
-} from '../store';
+} from '../core/store';
 
 import assign = require('lodash.assign');
 

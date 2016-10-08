@@ -6,13 +6,13 @@ import {
 
 import {
   SelectionSetWithRoot,
-} from './queries/store';
+} from '../queries/store';
 
 import {
   MutationBehavior,
-} from './data/mutationResults';
+} from '../data/mutationResults';
 
-import { FragmentMap } from './queries/getFromAST';
+import { FragmentMap } from '../queries/getFromAST';
 
 export interface QueryResultAction {
   type: 'APOLLO_QUERY_RESULT';

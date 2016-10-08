@@ -4,7 +4,7 @@ import {
   isMutationResultAction,
   isMutationErrorAction,
   isStoreResetAction,
-} from '../actions';
+} from '../core/actions';
 
 import {
   SelectionSet,

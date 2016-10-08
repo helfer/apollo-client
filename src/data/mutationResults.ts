@@ -32,7 +32,7 @@ import {
 
 import {
   ApolloReducerConfig,
-} from '../store';
+} from '../core/store';
 
 // Mutation behavior types, these can be used in the `resultBehaviors` argument to client.mutate
 

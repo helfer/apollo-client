@@ -8,7 +8,7 @@ import {
   isQueryStopAction,
   isStoreResetAction,
   StoreResetAction,
-} from '../actions';
+} from '../core/actions';
 
 import {
   FragmentMap,

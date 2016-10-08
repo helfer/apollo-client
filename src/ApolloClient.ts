@@ -3,22 +3,7 @@ import {
   createNetworkInterface,
 } from './transport/networkInterface';
 
-import {
-  Document,
-  FragmentDefinition,
-
-  // We need to import this here to allow TypeScript to include it in the definition file even
-  // though we don't use it. https://github.com/Microsoft/TypeScript/issues/5711
-  // We need to disable the linter here because TSLint rightfully complains that this is unused.
-  /* tslint:disable */
-  SelectionSet,
-  /* tslint:enable */
-
-} from 'graphql';
-
 import isUndefined = require('lodash.isundefined');
-import assign = require('lodash.assign');
-import isString = require('lodash.isstring');
 
 import {
   createApolloStore,
@@ -26,27 +11,7 @@ import {
   createApolloReducer,
   ApolloReducerConfig,
   Store,
-} from './store';
-
-import {
-  QueryManager,
-  ApolloQueryResult,
-  SubscriptionOptions,
-  ResultComparator,
-  ResultTransformer,
-} from './core/QueryManager';
-
-import {
-  ObservableQuery,
-} from './core/ObservableQuery';
-
-import {
-  Observable,
-} from './util/Observable';
-
-import {
-  WatchQueryOptions,
-} from './core/watchQueryOptions';
+} from './core/store';
 
 import {
   IdGetter,
@@ -57,16 +22,8 @@ import {
 } from './queries/queryTransform';
 
 import {
-  MutationBehavior,
-  MutationBehaviorReducerMap,
-  MutationQueryReducersMap,
-} from './data/mutationResults';
-
-import {
   storeKeyNameFromFieldNameAndArgs,
 } from './data/storeUtils';
-
-import { createFragment } from './fragments';
 
 /**
  * This type defines a "selector" function that receives state from the Redux store
@@ -91,14 +48,10 @@ function defaultReduxRootSelector(state: any) {
 export default class ApolloClient {
   public networkInterface: NetworkInterface;
   public store: ApolloStore;
-  public reduxRootKey: string;
   public reduxRootSelector: ApolloStateSelector | null;
   public initialState: any;
-  public queryManager: QueryManager;
   public reducerConfig: ApolloReducerConfig;
   public queryTransformer: QueryTransformer;
-  public resultTransformer: ResultTransformer;
-  public resultComparator: ResultComparator;
   public shouldForceFetch: boolean;
   public dataId: IdGetter;
   public fieldWithArgs: (fieldName: string, args?: Object) => string;
@@ -138,48 +91,23 @@ export default class ApolloClient {
    */
   constructor({
     networkInterface,
-    reduxRootKey,
     reduxRootSelector,
     initialState,
     dataIdFromObject,
     queryTransformer,
-    resultTransformer,
-    resultComparator,
     ssrMode = false,
     ssrForceFetchDelay = 0,
-    mutationBehaviorReducers = {} as MutationBehaviorReducerMap,
   }: {
     networkInterface?: NetworkInterface,
-    reduxRootKey?: string,
     reduxRootSelector?: string | ApolloStateSelector,
     initialState?: any,
     dataIdFromObject?: IdGetter,
     queryTransformer?: QueryTransformer,
-    resultTransformer?: ResultTransformer,
-    resultComparator?: ResultComparator,
     ssrMode?: boolean,
     ssrForceFetchDelay?: number
-    mutationBehaviorReducers?: MutationBehaviorReducerMap,
   } = {}) {
-    if (reduxRootKey && reduxRootSelector) {
-      throw new Error('Both "reduxRootKey" and "reduxRootSelector" are configured, but only one of two is allowed.');
-    }
 
-    if (reduxRootKey) {
-      console.warn(
-          '"reduxRootKey" option is deprecated and might be removed in the upcoming versions, ' +
-          'please use the "reduxRootSelector" instead.'
-      );
-      this.reduxRootKey = reduxRootKey;
-    }
-
-    if (!reduxRootSelector && reduxRootKey) {
-      this.reduxRootSelector = (state: any) => state[reduxRootKey];
-    } else if (isString(reduxRootSelector)) {
-      // for backwards compatibility, we set reduxRootKey if reduxRootSelector is a string
-      this.reduxRootKey = reduxRootSelector as string;
-      this.reduxRootSelector = (state: any) => state[reduxRootSelector as string];
-    } else if (typeof reduxRootSelector === 'function') {
+    if (typeof reduxRootSelector === 'function') {
       this.reduxRootSelector = reduxRootSelector;
     } else {
       // we need to know that reduxRootSelector wasn't provided by the user
@@ -190,8 +118,6 @@ export default class ApolloClient {
     this.networkInterface = networkInterface ? networkInterface :
       createNetworkInterface({ uri: '/graphql' });
     this.queryTransformer = queryTransformer;
-    this.resultTransformer = resultTransformer;
-    this.resultComparator = resultComparator;
     this.shouldForceFetch = !(ssrMode || ssrForceFetchDelay > 0);
     this.dataId = dataIdFromObject;
     this.fieldWithArgs = storeKeyNameFromFieldNameAndArgs;
@@ -202,12 +128,11 @@ export default class ApolloClient {
 
     this.reducerConfig = {
       dataIdFromObject,
-      mutationBehaviorReducers,
     };
 
-    this.watchQuery = this.watchQuery.bind(this);
+    // this.watchQuery = this.watchQuery.bind(this);
     this.query = this.query.bind(this);
-    this.mutate = this.mutate.bind(this);
+    // this.mutate = this.mutate.bind(this);
     this.setStore = this.setStore.bind(this);
   }
 
@@ -229,6 +154,7 @@ export default class ApolloClient {
    * a description of store reactivity.
    *
    */
+   /*
   public watchQuery(options: WatchQueryOptions): ObservableQuery {
     this.initStore();
 
@@ -245,6 +171,7 @@ export default class ApolloClient {
 
     return this.queryManager.watchQuery(options);
   };
+  */
 
   /**
    * This resolves a single query according to the options specified and returns a
@@ -255,21 +182,11 @@ export default class ApolloClient {
    * how this query should be treated e.g. whether it is a polling query, whether it should hit the
    * server at all or just resolve from the cache, etc.
    */
-  public query(options: WatchQueryOptions): Promise<ApolloQueryResult> {
+  // TODO REFACTOR give this a type.
+  public query(options: any): any {
     this.initStore();
 
-    if (!this.shouldForceFetch && options.forceFetch) {
-      options = assign({}, options, {
-        forceFetch: false,
-      }) as WatchQueryOptions;
-    }
-
-    // Register each of the fragments present in the query document. The point
-    // is to prevent fragment name collisions with fragments that are in the query
-    // document itself.
-    createFragment(options.query);
-
-    return this.queryManager.query(options);
+    return null;
   };
 
   /**
@@ -303,6 +220,7 @@ export default class ApolloClient {
    * for this, you can simply refetch the queries that will be affected and achieve a consistent
    * store once these queries return.
    */
+  /*
   public mutate(options: {
     mutation: Document,
     variables?: Object,
@@ -320,6 +238,7 @@ export default class ApolloClient {
     this.initStore();
     return this.queryManager.startGraphQLSubscription(options);
   }
+  */
 
   /**
    * Returns a reducer function configured according to the `reducerConfig` instance variable.
@@ -334,7 +253,6 @@ export default class ApolloClient {
 
       return (next: any) => (action: any) => {
         const returnValue = next(action);
-        this.queryManager.broadcastNewStore(store.getState());
         return returnValue;
       };
     };
@@ -364,13 +282,8 @@ export default class ApolloClient {
       initialState: this.initialState,
       config: this.reducerConfig,
     }));
-    // for backcompatibility, ensure that reduxRootKey is set to selector return value
-    this.reduxRootKey = DEFAULT_REDUX_ROOT_KEY;
   };
 
-  public resetStore() {
-    this.queryManager.resetStore();
-  };
 
   private setStore(store: ApolloStore) {
     let reduxRootSelector: ApolloStateSelector;
@@ -378,9 +291,6 @@ export default class ApolloClient {
       reduxRootSelector = this.reduxRootSelector;
     } else {
       reduxRootSelector = defaultReduxRootSelector;
-
-      // for backwards compatibility with react-apollo, we set reduxRootKey here.
-      this.reduxRootKey = DEFAULT_REDUX_ROOT_KEY;
     }
 
     // ensure existing store has apolloReducer
@@ -392,14 +302,5 @@ export default class ApolloClient {
     }
 
     this.store = store;
-
-    this.queryManager = new QueryManager({
-      networkInterface: this.networkInterface,
-      reduxRootSelector: reduxRootSelector,
-      store,
-      queryTransformer: this.queryTransformer,
-      resultTransformer: this.resultTransformer,
-      resultComparator: this.resultComparator,
-    });
   };
 }

@@ -3,7 +3,7 @@ const { assert } = chai;
 
 import {
   createApolloStore,
-} from '../src/store';
+} from '../src/core/store';
 
 describe('createApolloStore', () => {
   it('does not require any arguments', () => {
