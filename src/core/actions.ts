@@ -25,6 +25,26 @@ export function isQueryResultAction(action: ApolloAction): action is QueryResult
   return action.type === 'APOLLO_QUERY_RESULT';
 }
 
+export type FetchResultAction = {
+  type: 'APOLLO_FETCH_RESULT';
+  opId: number;
+  result: GraphQLResult;
+  optimistic: boolean;
+}
+
+export function isFetchResultAction(action: ApolloAction): action is FetchResultAction {
+  return action.type === 'APOLLO_FETCH_RESULT';
+}
+
+export function fetchResultAction(result: GraphQLResult, opId: number, optimistic = false): FetchResultAction {
+  return {
+    type: 'APOLLO_FETCH_RESULT',
+    result,
+    opId,
+    optimistic,
+  };
+}
+
 export interface QueryErrorAction {
   type: 'APOLLO_QUERY_ERROR';
   error: Error;
@@ -141,6 +161,7 @@ export function isStoreResetAction(action: ApolloAction): action is StoreResetAc
 }
 
 export type ApolloAction =
+  FetchResultAction |
   QueryResultAction |
   QueryErrorAction |
   QueryInitAction |

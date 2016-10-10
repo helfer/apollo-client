@@ -53,6 +53,7 @@ export interface Store {
 export interface ApolloStore {
   dispatch: (action: ApolloAction) => void;
 
+
   // We don't know what this will return because it could have any number of custom keys when
   // integrating with an existing store
   getState: () => any;

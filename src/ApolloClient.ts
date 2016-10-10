@@ -19,6 +19,10 @@ import {
 } from './core/store';
 
 import {
+  fetchResultAction,
+} from './core/actions';
+
+import {
   IdGetter,
 } from './data/extensions';
 
@@ -282,33 +286,31 @@ export default class ApolloClient {
   public operation(options: QueryOptions): () => void {
     this.initStore();
 
-    // document is already parsed. start tracking the query internally. (need it for reducer)
-    // const operationId = this.trackOperation(options)
-
-
-    // Initialize query in the store TODO: actually write the operation into a store with
-    // an init action.
+    // We keep track of the listeners, reducers and other operation info in memory
     const opId = this.startOperation(options);
 
-    // Register the listener and reducers.
-    // Keep track of the current result.
-
-    // this.store.dispatch(createApolloInitOperationAction(operationId, options));
-
-    // If there is an optimistic response, we dispatch that to the store now.
+    // We dispatch the init action to the store to start tracking the operation
 
     // send the query to the server
     this.fetchRequest(options.document, options.variables)
     .then( res =>
-      options.listener(null, { data: res.data })
+      // options.listener(null, { data: res.data })
+      // TODO R dispatch to store here.
+      this.store.dispatch(fetchResultAction(res, opId))
     )
     .catch( err =>
       options.listener(err, null)
+      // TODO R dispatch to store here.
     );
+
+    // If there is an optimistic response, we dispatch that to the store now.
 
     // results get sent from the store automatically
 
-    return () => { this.stopOperation(opId); };
+    return () => {
+      // TODO dispatch action to stop query in the store as well.
+      this.stopOperation(opId);
+    };
   };
 
   /**
@@ -372,8 +374,10 @@ export default class ApolloClient {
   public middleware = () => {
     return (store: ApolloStore) => {
       this.setStore(store);
+      console.log('set store');
 
       return (next: any) => (action: any) => {
+        console.log('just saw a dispatch of action', action.type);
         const returnValue = next(action);
         // TODO REFACTOR: do we really need to call broadcast on every action?
         this.broadcastToQueryListeners(store.getState());
@@ -455,6 +459,15 @@ export default class ApolloClient {
     }
 
     this.store = store;
+
+    // TODO what the hell am I doing here? Ask someone who knows...
+    // does the store not have a subscribe method when we use middleware? It's weird.
+    if (typeof (store as any)['subscribe']  === 'function'){
+      (store as any)['subscribe'](() => {
+        console.log('A store update happened!');
+        console.log(this.store.getState());
+      });
+    }
   };
 
   // TODO: make this arg of type OperationOptions, so it can be query, mutation or subscription options.
