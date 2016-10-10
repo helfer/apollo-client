@@ -1,7 +1,12 @@
 import {
   NetworkInterface,
   createNetworkInterface,
+  Request,
 } from './transport/networkInterface';
+
+import {
+  Document,
+} from 'graphql';
 
 import isUndefined = require('lodash.isundefined');
 
@@ -20,6 +25,10 @@ import {
 import {
   QueryTransformer,
 } from './queries/queryTransform';
+
+import {
+  getOperationName,
+} from './queries/getFromAST';
 
 import {
   storeKeyNameFromFieldNameAndArgs,
@@ -255,13 +264,12 @@ export default class ApolloClient {
         options,
         {
           listener: (err: any, res: ApolloQueryResult) => {
-            console.log(`result is`, res);
             unsubscribe();
             if (err) {
               reject(err);
             }
             resolve(res);
-          }
+          },
         }
       );
       unsubscribe = this.operation(operationOptions);
@@ -282,9 +290,6 @@ export default class ApolloClient {
     // an init action.
     const opId = this.startOperation(options);
 
-    console.log(`Op ID is ${opId}`);
-    // TODO later: compare query against store.
-
     // Register the listener and reducers.
     // Keep track of the current result.
 
@@ -292,37 +297,19 @@ export default class ApolloClient {
 
     // If there is an optimistic response, we dispatch that to the store now.
 
-    // Just send the damn query over the interface
-    // this.fetchRequest(document, variables).then((result, errors) => {
-    //  this.store.dispatch(createApolloResultAction(result, errors, document, variables));
-    //});
+    // send the query to the server
+    this.fetchRequest(options.document, options.variables)
+    .then( res =>
+      options.listener(null, { data: res.data })
+    )
+    .catch( err =>
+      options.listener(err, null)
+    );
 
     // results get sent from the store automatically
-    setTimeout(() => options.listener(null, { data: 'it works' }), 50);
 
     return () => { this.stopOperation(opId); };
   };
-
-  // TODO: make this arg of type OperationOptions, so it can be query, mutation or subscription options.
-  private startOperation(options: QueryOptions) {
-    const opId = this.generateOperationId();
-    this.activeOperations[opId] = options;
-    // TODO: dispatch startOperation action from here.
-    return opId;
-  }
-
-  private generateOperationId(): number {
-    const opId = this.idCounter;
-    this.idCounter++;
-    return opId;
-  }
-
-  private stopOperation(opId: number): void{
-    console.log('stopping', opId);
-    // TODO REFACTOR: dispatch a stop query action.
-    // have to make sure that no results can be dispatched and stopping a query is sort of atomic.
-    delete this.activeOperations[opId];
-  }
 
   /**
    * This resolves a single mutation according to the options specified and returns a
@@ -400,7 +387,6 @@ export default class ApolloClient {
     // For each query listener, check if the result has changed. If it has, notify the listener.
 
     Object.keys(this.activeOperations).forEach(opId => {
-      console.log(`updating result for ${opId}`);
       /* try {
         const resultFromStore = {
           data: readQueryFromStore({
@@ -470,4 +456,77 @@ export default class ApolloClient {
 
     this.store = store;
   };
+
+  // TODO: make this arg of type OperationOptions, so it can be query, mutation or subscription options.
+  private startOperation(options: QueryOptions) {
+    const opId = this.generateOperationId();
+    this.activeOperations[opId] = options;
+    // TODO: dispatch startOperation action from here.
+    return opId;
+  }
+
+  private generateOperationId(): number {
+    const opId = this.idCounter;
+    this.idCounter++;
+    return opId;
+  }
+
+  private stopOperation(opId: number): void {
+    // TODO REFACTOR: dispatch a stop query action.
+    // have to make sure that no results can be dispatched and stopping a query is sort of atomic.
+    delete this.activeOperations[opId];
+  }
+
+  // TODO REFACTOR: change this to an actual request type?
+  private fetchRequest(document: Document, variables: any) {
+    const request: Request = {
+      query: document,
+      variables,
+      operationName: getOperationName(document),
+    };
+
+    return this.networkInterface.query(request);
+      /*
+      .then((result: GraphQLResult) => {
+        // XXX handle multiple ApolloQueryResults
+
+        this.store.dispatch({
+          type: 'APOLLO_QUERY_RESULT',
+          result,
+          queryId,
+          requestId,
+        });
+        return result;
+      }).then(() => {
+
+        let resultFromStore: any;
+        try {
+          // ensure result is combined with data already in store
+          // this will throw an error if there are missing fields in
+          // the results if returnPartialData is false.
+          resultFromStore = readQueryFromStore({
+            store: this.getApolloState().data,
+            variables,
+            returnPartialData: returnPartialData || noFetch,
+            query,
+          });
+          // ensure multiple errors don't get thrown
+          // tslint:disable
+        } catch (e) {}
+        // tslint:enable
+
+        // return a chainable promise
+        this.removeFetchQueryPromise(requestId);
+        resolve({ data: resultFromStore, loading: false });
+      }).catch((error: Error) => {
+        this.store.dispatch({
+          type: 'APOLLO_QUERY_ERROR',
+          error,
+          queryId,
+          requestId,
+        });
+
+        this.removeFetchQueryPromise(requestId);
+      });*/
+  }
 }
