@@ -13,7 +13,7 @@ import {
 import gql from 'graphql-tag';
 
 describe('diffing queries against the store', () => {
-  it('returns nothing when the store is enough', () => {
+  it('returns no isMissing when the store is enough', () => {
     const query = gql`
       {
         people_one(id: "1") {

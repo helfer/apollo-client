@@ -17,7 +17,7 @@ import {
   Store,
 } from '../src/core/store';
 
-// import gql from 'graphql-tag';
+import gql from 'graphql-tag';
 
 /*
 import {
@@ -51,7 +51,7 @@ import {
 
 // import { addTypenameToSelectionSet } from '../src/queries/queryTransform';
 
-// import mockNetworkInterface from './mocks/mockNetworkInterface';
+import mockNetworkInterface from './mocks/mockNetworkInterface';
 
 // import { getFragmentDefinitions } from '../src/queries/getFromAST';
 
@@ -214,7 +214,7 @@ describe('client', () => {
       );
     }
   });
-/*
+
   it('should allow for a single query to take place', () => {
 
     const query = gql`
@@ -246,12 +246,13 @@ describe('client', () => {
       networkInterface,
     });
 
-    return client.query({ query })
-      .then((result) => {
+    return client.query({ document: query })
+    // TODO REFACTOR: why isn't it picking up the type here? why do I need 'any'?
+      .then((result: any) => {
         assert.deepEqual(result.data, data);
       });
   });
-
+/*
   it('should allow for a single query with existing store', () => {
     const query = gql`
       query people {

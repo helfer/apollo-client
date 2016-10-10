@@ -13,6 +13,7 @@ import './readFromStore';
 import './roundtrip';
 import './diffAgainstStore';
 import './networkInterface';
+import './batchedNetworkInterface';
 import './client';
 import './store';
 import './errors';

@@ -39,6 +39,60 @@ function defaultReduxRootSelector(state: any) {
   return state[DEFAULT_REDUX_ROOT_KEY];
 }
 
+
+// TODO: change this to OperationOptions, then create separate QueryOptions type
+export type QueryOptions = {
+  /**
+   * A GraphQL document that consists of a single query to be sent down to the
+   * server.
+   */
+  document: Document;
+
+  /**
+   * A map going from variable name to variable value, where the variables are used
+   * within the GraphQL query.
+   */
+  variables?: { [key: string]: any };
+
+  /**
+   * TODO REFACTOR: Fix this definition!
+   */
+  reducer?: (store: any, action: any) => any;
+
+  /**
+   * TODO REFACTOR: actually implement this
+   */
+  optimisticResponse?: any;
+
+  /**
+   * The callback that gets called for every result update.
+   */
+  listener?: QueryListener;
+}
+
+
+export type ApolloQueryResult = {
+  data: any;
+  // loading: boolean; // TODO REFACTOR - call this state
+
+  // This type is different from the GraphQLResult type because it doesn't include errors.
+  // Those are thrown via the standard promise/observer catch mechanism.
+}
+
+export type QueryListener = (error: any, result: ApolloQueryResult) => void;
+
+export type OperationInfo = {
+  operationId: number;
+
+  listener: QueryListener;
+
+  // TODO: in the long run, I hope we don't have to store this.
+  // We should have some other system of notifications set up.
+  currentResult: ApolloQueryResult;
+
+}
+
+
 /**
  * This is the primary Apollo Client class. It is used to send GraphQL documents (i.e. queries
  * and mutations) to a GraphQL spec-compliant server over a {@link NetworkInterface} instance,
@@ -55,6 +109,11 @@ export default class ApolloClient {
   public shouldForceFetch: boolean;
   public dataId: IdGetter;
   public fieldWithArgs: (fieldName: string, args?: Object) => string;
+
+  // TODO: set the right type here for OperationInfo.
+  private activeOperations: { [operationId: number]: any };
+
+  private idCounter: number;
 
   /**
    * Constructs an instance of {@link ApolloClient}.
@@ -134,6 +193,9 @@ export default class ApolloClient {
     this.query = this.query.bind(this);
     // this.mutate = this.mutate.bind(this);
     this.setStore = this.setStore.bind(this);
+
+    this.idCounter = 0;
+    this.activeOperations = {};
   }
 
   /**
@@ -178,16 +240,89 @@ export default class ApolloClient {
    * {@link Promise} which is either resolved with the resulting data or rejected
    * with an error.
    *
-   * @param options An object of type {@link WatchQueryOptions} that allows us to describe
+   * @param options An object of type {@link QueryOptions} that allows us to describe
    * how this query should be treated e.g. whether it is a polling query, whether it should hit the
    * server at all or just resolve from the cache, etc.
+   *
    */
-  // TODO REFACTOR give this a type.
-  public query(options: any): any {
+  public query(options: QueryOptions): Promise<ApolloQueryResult> {
+    return new Promise((resolve, reject) => {
+      let unsubscribe = (): void => {
+        throw new Error('No operation registered!');
+      };
+      const operationOptions = Object.assign(
+        {},
+        options,
+        {
+          listener: (err: any, res: ApolloQueryResult) => {
+            console.log(`result is`, res);
+            unsubscribe();
+            if (err) {
+              reject(err);
+            }
+            resolve(res);
+          }
+        }
+      );
+      unsubscribe = this.operation(operationOptions);
+    });
+  }
+
+  /**
+   * Returns a function, which will stop the associated operation when called.
+   */
+  public operation(options: QueryOptions): () => void {
     this.initStore();
 
-    return null;
+    // document is already parsed. start tracking the query internally. (need it for reducer)
+    // const operationId = this.trackOperation(options)
+
+
+    // Initialize query in the store TODO: actually write the operation into a store with
+    // an init action.
+    const opId = this.startOperation(options);
+
+    console.log(`Op ID is ${opId}`);
+    // TODO later: compare query against store.
+
+    // Register the listener and reducers.
+    // Keep track of the current result.
+
+    // this.store.dispatch(createApolloInitOperationAction(operationId, options));
+
+    // If there is an optimistic response, we dispatch that to the store now.
+
+    // Just send the damn query over the interface
+    // this.fetchRequest(document, variables).then((result, errors) => {
+    //  this.store.dispatch(createApolloResultAction(result, errors, document, variables));
+    //});
+
+    // results get sent from the store automatically
+    setTimeout(() => options.listener(null, { data: 'it works' }), 50);
+
+    return () => { this.stopOperation(opId); };
   };
+
+  // TODO: make this arg of type OperationOptions, so it can be query, mutation or subscription options.
+  private startOperation(options: QueryOptions) {
+    const opId = this.generateOperationId();
+    this.activeOperations[opId] = options;
+    // TODO: dispatch startOperation action from here.
+    return opId;
+  }
+
+  private generateOperationId(): number {
+    const opId = this.idCounter;
+    this.idCounter++;
+    return opId;
+  }
+
+  private stopOperation(opId: number): void{
+    console.log('stopping', opId);
+    // TODO REFACTOR: dispatch a stop query action.
+    // have to make sure that no results can be dispatched and stopping a query is sort of atomic.
+    delete this.activeOperations[opId];
+  }
 
   /**
    * This resolves a single mutation according to the options specified and returns a
@@ -253,10 +388,42 @@ export default class ApolloClient {
 
       return (next: any) => (action: any) => {
         const returnValue = next(action);
+        // TODO REFACTOR: do we really need to call broadcast on every action?
+        this.broadcastToQueryListeners(store.getState());
         return returnValue;
       };
     };
   };
+
+  // Called from middleware
+  public broadcastToQueryListeners(store: any) {
+    // For each query listener, check if the result has changed. If it has, notify the listener.
+
+    Object.keys(this.activeOperations).forEach(opId => {
+      console.log(`updating result for ${opId}`);
+      /* try {
+        const resultFromStore = {
+          data: readQueryFromStore({
+            store: this.getDataWithOptimisticResults(),
+            query: opInfo.document,
+            variables: queryStoreValue.previousVariables || queryStoreValue.variables,
+            returnPartialData: opInfo.returnPartialData || opInfo.noFetch,
+          }),
+          loading: queryStoreValue.loading,
+        };
+
+        opInfo.listener(null, resultFromStore);
+      } catch (error) {
+        opInfo.listener(error, null);
+      } */
+    });
+    // read result from store.
+    // TODO NEXT: there's a lot of reading and comparing going on here. And it happens for EVERY action.
+    // that's a bit too much, if you ask me.
+
+    // compare to previous result (which we save along with the reducers)
+
+  }
 
   /**
    * This initializes the Redux store that we use as a reactive cache.
